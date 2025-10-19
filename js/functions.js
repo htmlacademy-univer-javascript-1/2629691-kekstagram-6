@@ -1,21 +1,18 @@
-// Функция проверки длины строки
-const checkStringLength = (string, maxLength) => string.length <= maxLength;
-
-// Функция проверки палиндрома с учётом пробелов и регистра
-const isPalindrome = (string) => {
-  const normalizedString = string.replaceAll(' ', '').toLowerCase();
-  const reversedString = normalizedString.split('').reverse().join('');
-  return normalizedString === reversedString;
+const hoursInMinutes = (time) => {
+  const [hours, minutes] = time.split(':');
+  return parseInt(hours, 10) * 60 + parseInt(minutes, 10);
 };
 
-// Проверка длины строки
-console.log(checkStringLength('проверяемая строка', 20));
-console.log(checkStringLength('проверяемая строка', 18));
-console.log(checkStringLength('проверяемая строка', 10));
+const isDuringBusinessHours = (startTime, endTime, startMeeting, durationMeeting) => {
+  const startTimeInMinute = hoursInMinutes(startTime);
+  const endTimeInMinute = hoursInMinutes(endTime);
+  const startMeetingInMinute = hoursInMinutes(startMeeting);
+  const endMeetingInMinute = startMeetingInMinute + durationMeeting;
+  return (endTimeInMinute - endMeetingInMinute >= 0) && (startMeetingInMinute - startTimeInMinute >= 0);
+};
 
-// Проверка палиндрома
-console.log(isPalindrome('топот'));
-console.log(isPalindrome('ДовОд'));
-console.log(isPalindrome('Кекс'));
-console.log(isPalindrome('Лёша на полке клопа нашёл '));
-
+isDuringBusinessHours('08:00', '17:30', '14:00', 90); // true
+isDuringBusinessHours('8:0', '10:0', '8:0', 120);     // true
+isDuringBusinessHours('08:00', '14:30', '14:00', 90); // false
+isDuringBusinessHours('14:00', '17:30', '08:0', 90);  // false
+isDuringBusinessHours('8:00', '17:30', '08:00', 900); // false
