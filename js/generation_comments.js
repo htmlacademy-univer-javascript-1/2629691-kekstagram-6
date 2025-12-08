@@ -1,4 +1,4 @@
-import { getRandomInteger, getRandomArrayElement } from './util.js';
+import { getRandomInteger, getRandomArrayElement } from './utils.js';
 import { NAMES, MESSAGES, DESCRIPTIONS } from './data.js';
 
 // Создание случайного сообщения
