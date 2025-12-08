@@ -5,12 +5,12 @@ const createThumbnail = (pictureData) => {
   thumbnailElement.dataset.id = pictureData.id;
 
   //Действия над картинками
-  const thumbImg = thumbnailElement.querySelector('.picture__img');
+  const thumbImg = thumbnailElement.querySelector('.pictureimg');
   thumbImg.src = pictureData.url;
   thumbImg.alt = pictureData.description;
 
   //Действия над комментариями
-  const thumbComments = thumbnailElement.querySelector('.picture__comments');
+  const thumbComments = thumbnailElement.querySelector('.picturecomments');
   thumbComments.textContent = pictureData.comments.length;
 
   //Действия над лайками
@@ -28,7 +28,9 @@ const renderThumbnails = (picturesList, picturesContainer) => {
     renderFragment.appendChild(thumbnail);
   });
 
-  picturesContainer.innerHTML = '';
+  const oldThumbnails = picturesContainer.querySelectorAll('.picture');
+  oldThumbnails.forEach((thumb) => thumb.remove());
+
   picturesContainer.appendChild(renderFragment);
 };
 
