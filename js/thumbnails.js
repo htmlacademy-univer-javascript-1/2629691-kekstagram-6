@@ -2,6 +2,7 @@
 const createThumbnail = (pictureData) => {
   const pictureTemplate = document.querySelector('#picture');
   const thumbnailElement = pictureTemplate.content.querySelector('.picture').cloneNode(true);
+  thumbnailElement.dataset.id = pictureData.id;
 
   //Действия над картинками
   const thumbImg = thumbnailElement.querySelector('.picture__img');
