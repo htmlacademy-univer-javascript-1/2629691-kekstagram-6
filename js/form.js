@@ -6,6 +6,18 @@ const hashtagsInput = uploadForm.querySelector('.text__hashtags');
 const descriptionInput = uploadForm.querySelector('.text__description');
 const submitButton = uploadForm.querySelector('.img-upload__submit');
 
+// Элементы для масштабирования
+const scaleSmaller = uploadOverlay.querySelector('.scale__control--smaller');
+const scaleBigger = uploadOverlay.querySelector('.scale__control--bigger');
+const scaleValue = uploadOverlay.querySelector('.scale__control--value');
+const previewImage = uploadOverlay.querySelector('.img-upload__preview img');
+
+// Элементы для эффектов
+const effectsList = uploadOverlay.querySelector('.effects__list');
+const effectLevelContainer = uploadOverlay.querySelector('.img-upload__effect-level');
+const effectLevelValue = uploadOverlay.querySelector('.effect-level__value');
+const effectLevelSlider = uploadOverlay.querySelector('.effect-level__slider');
+
 // Инициализация Pristine
 let pristine = null;
 if (typeof Pristine !== 'undefined') {
@@ -15,6 +27,144 @@ if (typeof Pristine !== 'undefined') {
     errorTextClass: 'img-upload__field-wrapper--error'
   });
 }
+
+// Настройки эффектов
+const EFFECTS = {
+  none: {
+    min: 0,
+    max: 100,
+    step: 1,
+    filter: 'none',
+    unit: ''
+  },
+  chrome: {
+    min: 0,
+    max: 1,
+    step: 0.1,
+    filter: 'grayscale',
+    unit: ''
+  },
+  sepia: {
+    min: 0,
+    max: 1,
+    step: 0.1,
+    filter: 'sepia',
+    unit: ''
+  },
+  marvin: {
+    min: 0,
+    max: 100,
+    step: 1,
+    filter: 'invert',
+    unit: '%'
+  },
+  phobos: {
+    min: 0,
+    max: 3,
+    step: 0.1,
+    filter: 'blur',
+    unit: 'px'
+  },
+  heat: {
+    min: 1,
+    max: 3,
+    step: 0.1,
+    filter: 'brightness',
+    unit: ''
+  }
+};
+
+let currentEffect = 'none';
+let slider = null;
+
+// Масштабирование
+const SCALE_STEP = 25;
+const SCALE_MIN = 25;
+const SCALE_MAX = 100;
+let currentScale = 100;
+
+const updateScale = () => {
+  scaleValue.value = `${currentScale}%`;
+  previewImage.style.transform = `scale(${currentScale / 100})`;
+};
+
+const onScaleSmallerClick = () => {
+  if (currentScale > SCALE_MIN) {
+    currentScale -= SCALE_STEP;
+    updateScale();
+  }
+};
+
+const onScaleBiggerClick = () => {
+  if (currentScale < SCALE_MAX) {
+    currentScale += SCALE_STEP;
+    updateScale();
+  }
+};
+
+const applyEffect = (value) => {
+  if (currentEffect === 'none') {
+    previewImage.style.filter = 'none';
+    return;
+  }
+
+  const effect = EFFECTS[currentEffect];
+  previewImage.style.filter = `${effect.filter}(${value}${effect.unit})`;
+};
+
+// Инициализация слайдера
+const initSlider = () => {
+  if (noUiSlider) {
+    slider = noUiSlider.create(effectLevelSlider, {
+      range: {
+        min: EFFECTS[currentEffect].min,
+        max: EFFECTS[currentEffect].max
+      },
+      start: EFFECTS[currentEffect].max,
+      step: EFFECTS[currentEffect].step,
+      connect: 'lower'
+    });
+
+    slider.on('update', () => {
+      const value = slider.get();
+      effectLevelValue.value = value;
+      applyEffect(value);
+    });
+  }
+};
+
+const updateSlider = () => {
+  if (slider) {
+    slider.updateOptions({
+      range: {
+        min: EFFECTS[currentEffect].min,
+        max: EFFECTS[currentEffect].max
+      },
+      start: EFFECTS[currentEffect].max,
+      step: EFFECTS[currentEffect].step
+    });
+  }
+};
+
+const onEffectChange = (evt) => {
+  if (evt.target.type === 'radio') {
+    currentEffect = evt.target.value;
+
+    if (slider) {
+      slider.set(EFFECTS[currentEffect].max);
+    }
+
+    updateSlider();
+
+    if (currentEffect === 'none') {
+      effectLevelContainer.classList.add('hidden');
+    } else {
+      effectLevelContainer.classList.remove('hidden');
+    }
+
+    applyEffect(EFFECTS[currentEffect].max);
+  }
+};
 
 // Парсер хэш-тегов
 function parseTagsInput(input) {
@@ -89,6 +239,26 @@ function openUploadForm() {
   uploadOverlay.classList.remove('hidden');
   document.body.classList.add('modal-open');
   document.addEventListener('keydown', onDocumentKeydown);
+
+  // Сброс масштаба
+  currentScale = 100;
+  updateScale();
+
+  // Сброс эффектов
+  currentEffect = 'none';
+  const noneEffectRadio = uploadOverlay.querySelector('#effect-none');
+  noneEffectRadio.checked = true;
+
+  effectLevelContainer.classList.add('hidden');
+
+  previewImage.style.filter = 'none';
+
+  // Инициализация слайдера
+  if (!slider) {
+    initSlider();
+  } else {
+    updateSlider();
+  }
 }
 
 function closeUploadForm() {
@@ -99,6 +269,12 @@ function closeUploadForm() {
     pristine.reset();
   }
   submitButton.disabled = false;
+
+  currentScale = 100;
+
+  currentEffect = 'none';
+  previewImage.style.transform = '';
+  previewImage.style.filter = 'none';
 }
 
 // Обработчик клавиши Esc
@@ -112,13 +288,16 @@ function onDocumentKeydown(evt) {
 }
 
 function initUploadForm() {
-  // Добавление валидаторов
   if (pristine) {
     pristine.addValidator(hashtagsInput, validateHashtags, hashtagsErrorMessage);
     pristine.addValidator(descriptionInput, validateDescription, 'Длина комментария не может превышать 140 символов.');
   }
 
-  // Обработчики событий
+  scaleSmaller.addEventListener('click', onScaleSmallerClick);
+  scaleBigger.addEventListener('click', onScaleBiggerClick);
+
+  effectsList.addEventListener('change', onEffectChange);
+
   uploadInput.addEventListener('change', () => {
     if (uploadInput.files && uploadInput.files.length > 0) {
       openUploadForm();
@@ -132,7 +311,6 @@ function initUploadForm() {
 
   document.addEventListener('keydown', onDocumentKeydown);
 
-  // Предотвращение закрытия формы при фокусе в полях ввода
   [hashtagsInput, descriptionInput].forEach((el) => {
     el.addEventListener('keydown', (evt) => {
       if (evt.key === 'Escape' || evt.key === 'Esc') {
@@ -141,7 +319,6 @@ function initUploadForm() {
     });
   });
 
-  // Обработчик отправки формы
   uploadForm.addEventListener('submit', (evt) => {
     evt.preventDefault();
 
