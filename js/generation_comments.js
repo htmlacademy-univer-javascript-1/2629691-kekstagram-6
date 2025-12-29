@@ -12,11 +12,12 @@ function generateMessage() {
   return messages.join(' ');
 }
 
-// Функция для создания уникальных ID (для комментариев)
+// Генератор уникальных ID для комментариев
 function createId() {
   const usedIds = new Set();
   return function generateNewId() {
     let newId = getRandomInteger(1, 1000);
+    // Ищем уникальный ID
     while (usedIds.has(newId)) {
       newId = getRandomInteger(1, 1000);
     }
@@ -27,10 +28,11 @@ function createId() {
 
 const generateCommentId = createId();
 
-// Функция для создания комментария
+// Создание одного комментария
 function createComment() {
   const comment = {
     id: generateCommentId(),
+    // Случайная аватарка от 1 до 6
     avatar: `img/avatar-${getRandomInteger(1, 6)}.svg`,
     message: generateMessage(),
     name: getRandomArrayElement(NAMES)
@@ -38,7 +40,7 @@ function createComment() {
   return comment;
 }
 
-// Функция для создания одной фотографии
+// Создание данных для одной фотографии
 function createPhoto(photoId) {
   const commentCount = getRandomInteger(0, 30);
   const comments = [];
@@ -46,6 +48,7 @@ function createPhoto(photoId) {
     const comment = createComment();
     comments.push(comment);
   }
+
   const photo = {
     id: photoId,
     url: `photos/${photoId}.jpg`,
@@ -56,7 +59,7 @@ function createPhoto(photoId) {
   return photo;
 }
 
-// Функция для создания всех фотографий
+// Генерация 25 фотографий
 function generatePhotos() {
   const photos = [];
   const photoCount = 25;

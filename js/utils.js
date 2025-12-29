@@ -1,3 +1,4 @@
+// Генерация случайного целого числа
 const getRandomInteger = (a, b) => {
   const lower = Math.ceil(Math.min(a, b));
   const upper = Math.floor(Math.max(a, b));
@@ -5,9 +6,10 @@ const getRandomInteger = (a, b) => {
   return Math.floor(result);
 };
 
+// Выбор случайного элемента массива
 const getRandomArrayElement = (elements) => elements[getRandomInteger(0, elements.length - 1)];
 
-// Функция для устранения дребезга
+// Функция debounce для устранения дребезга
 function debounce(callback, timeoutDelay = 500) {
   let timeoutId;
   return (...rest) => {
