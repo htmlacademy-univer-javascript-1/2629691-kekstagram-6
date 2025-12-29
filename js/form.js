@@ -1,5 +1,6 @@
 import { sendData } from './api.js';
 
+// Находим все элементы формы
 const uploadForm = document.querySelector('.img-upload__form');
 const uploadInput = document.querySelector('.img-upload__input');
 const uploadOverlay = document.querySelector('.img-upload__overlay');
@@ -20,7 +21,7 @@ const effectLevelContainer = uploadOverlay.querySelector('.img-upload__effect-le
 const effectLevelValue = uploadOverlay.querySelector('.effect-level__value');
 const effectLevelSlider = uploadOverlay.querySelector('.effect-level__slider');
 
-// Инициализация Pristine
+// Инициализация Pristine для валидации
 let pristine = null;
 if (typeof Pristine !== 'undefined') {
   pristine = new Pristine(uploadForm, {
@@ -79,7 +80,7 @@ const EFFECTS = {
 let currentEffect = 'none';
 let slider = null;
 
-// Масштабирование
+// Настройки масштабирования
 const SCALE_STEP = 25;
 const SCALE_MIN = 25;
 const SCALE_MAX = 100;
@@ -88,11 +89,13 @@ let currentScale = 100;
 let messageBlock = null;
 let closeMessage = function() {};
 
+// Обновление масштаба
 function updateScale() {
   scaleValue.value = `${currentScale}%`;
   previewImage.style.transform = `scale(${currentScale / 100})`;
 }
 
+// Уменьшение масштаба
 function onScaleSmallerClick() {
   if (currentScale > SCALE_MIN) {
     currentScale -= SCALE_STEP;
@@ -100,6 +103,7 @@ function onScaleSmallerClick() {
   }
 }
 
+// Увеличение масштаба
 function onScaleBiggerClick() {
   if (currentScale < SCALE_MAX) {
     currentScale += SCALE_STEP;
@@ -107,6 +111,7 @@ function onScaleBiggerClick() {
   }
 }
 
+// Применение эффекта
 function applyEffect(value) {
   if (currentEffect === 'none') {
     previewImage.style.filter = 'none';
@@ -138,6 +143,7 @@ function initSlider() {
   }
 }
 
+// Обновление слайдера при смене эффекта
 function updateSlider() {
   if (slider) {
     slider.updateOptions({
@@ -151,6 +157,7 @@ function updateSlider() {
   }
 }
 
+// Обработчик смены эффекта
 function onEffectChange(evt) {
   if (evt.target.type === 'radio') {
     currentEffect = evt.target.value;
@@ -161,6 +168,7 @@ function onEffectChange(evt) {
 
     updateSlider();
 
+    // Прячем или показываем слайдер
     if (currentEffect === 'none') {
       effectLevelContainer.classList.add('hidden');
     } else {
@@ -171,7 +179,7 @@ function onEffectChange(evt) {
   }
 }
 
-// Парсер хэш-тегов
+// Разбор хэш-тегов из строки
 function parseTagsInput(input) {
   if (!input) {
     return [];
@@ -209,6 +217,7 @@ function validateHashtags(value) {
     return false;
   }
 
+  // Проверяем каждый тег
   for (const tag of tags) {
     if (!isValidTagFormat(tag)) {
       validateHashtags.lastError = `Неправильный формат тега "${tag}". Тег должен начинаться с # и содержать только буквы и цифры, длина до 20 символов.`;
@@ -216,6 +225,7 @@ function validateHashtags(value) {
     }
   }
 
+  // Проверяем на дубликаты
   const lowered = tags.map((t) => t.toLowerCase());
   const unique = new Set(lowered);
   if (unique.size !== lowered.length) {
@@ -233,19 +243,17 @@ function hashtagsErrorMessage() {
 
 // Валидация комментария
 function validateDescription(value) {
-  if (value.length <= 140) {
-    return true;
-  }
-  return false;
+  return value.length <= 140;
 }
 
-// Обработчик клавиши Esc для формы
+// Обработчик Escape для формы
 function onDocumentKeydown(evt) {
   if (evt.key === 'Escape') {
     if (uploadOverlay.classList.contains('hidden')) {
       return;
     }
 
+    // Не закрываем если фокус в полях ввода
     const isFocusedOnInput = document.activeElement === hashtagsInput ||
                             document.activeElement === descriptionInput;
 
@@ -255,7 +263,7 @@ function onDocumentKeydown(evt) {
   }
 }
 
-// Сброс формы к исходному состоянию
+// Сброс формы
 function resetFormToInitialState() {
   currentScale = 100;
   updateScale();
@@ -283,7 +291,7 @@ function resetFormToInitialState() {
   submitButton.disabled = false;
 }
 
-// Обработчики клавиш для сообщений
+// Обработчики для сообщений
 function onEscapeKeydown(evt) {
   if (evt.key === 'Escape') {
     closeMessage();
@@ -296,7 +304,7 @@ function onClickOutside(evt) {
   }
 }
 
-// Функции для показа/скрытия сообщений
+// Показать сообщение
 function showMessage(templateId, closeCallback) {
   const template = document.querySelector(`#${templateId}`);
   if (!template) {
@@ -331,6 +339,7 @@ function showMessage(templateId, closeCallback) {
   }
 }
 
+// Показать сообщение об успехе
 function showSuccessMessage() {
   showMessage('success', () => {
     resetFormToInitialState();
@@ -338,22 +347,21 @@ function showSuccessMessage() {
   });
 }
 
+// Показать сообщение об ошибке
 function showErrorMessage() {
   showMessage('error');
   submitButton.disabled = false;
 }
 
-// Функции для открытия/закрытия формы
+// Открытие формы
 function openUploadForm() {
   uploadOverlay.classList.remove('hidden');
   document.body.classList.add('modal-open');
   document.addEventListener('keydown', onDocumentKeydown);
 
-  // Сброс масштаба
   currentScale = 100;
   updateScale();
 
-  // Сброс эффектов
   currentEffect = 'none';
   const noneEffectRadio = uploadOverlay.querySelector('#effect-none');
   if (noneEffectRadio) {
@@ -363,7 +371,6 @@ function openUploadForm() {
   effectLevelContainer.classList.add('hidden');
   previewImage.style.filter = 'none';
 
-  // Инициализация слайдера
   if (!slider) {
     initSlider();
   } else {
@@ -371,6 +378,7 @@ function openUploadForm() {
   }
 }
 
+// Закрытие формы
 function closeUploadForm() {
   resetFormToInitialState();
   uploadOverlay.classList.add('hidden');
@@ -378,6 +386,7 @@ function closeUploadForm() {
   document.removeEventListener('keydown', onDocumentKeydown);
 }
 
+// Инициализация формы
 function initUploadForm() {
   if (pristine) {
     pristine.addValidator(hashtagsInput, validateHashtags, hashtagsErrorMessage);
@@ -410,7 +419,7 @@ function initUploadForm() {
     closeUploadForm();
   });
 
-  // Предотвращение закрытия формы при фокусе на полях ввода
+  // Предотвращение закрытия при фокусе в полях
   [hashtagsInput, descriptionInput].forEach((el) => {
     el.addEventListener('keydown', (evt) => {
       if (evt.key === 'Escape') {
@@ -431,7 +440,6 @@ function initUploadForm() {
 
     try {
       const formData = new FormData(uploadForm);
-
       await sendData(formData);
       showSuccessMessage();
     } catch (error) {
