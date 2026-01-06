@@ -472,3 +472,4 @@ function initUploadForm() {
 }
 
 export { initUploadForm, closeUploadForm };
+
