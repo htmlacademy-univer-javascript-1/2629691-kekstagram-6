@@ -81,4 +81,3 @@ function generatePhotos() {
 }
 
 export { generatePhotos };
-

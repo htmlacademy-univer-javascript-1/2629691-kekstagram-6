@@ -94,4 +94,3 @@ const initFilters = (photos) => {
 };
 
 export { initFilters };
-
