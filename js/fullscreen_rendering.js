@@ -1,3 +1,4 @@
+// Полноэкранный просмотр фотографии и подгрузка комментариев
 import { userPhotos } from './main.js';
 
 const bigPictureElement = document.querySelector('.big-picture');
@@ -12,6 +13,7 @@ const closeButtonElement = bigPictureElement.querySelector('.big-picture__cancel
 
 const COMMENTS_PER_PAGE = 5;
 
+// Создаём DOM‑элемент одного комментария
 const createCommentElement = (comment) => {
   const commentElement = document.createElement('li');
   commentElement.classList.add('social__comment');
@@ -33,6 +35,7 @@ const createCommentElement = (comment) => {
   return commentElement;
 };
 
+// Отрисовываем полноэкранную карточку фото
 const renderFullscreenPhoto = (photoData) => {
   socialCommentCountElement.classList.remove('hidden');
   commentsLoaderElement.classList.remove('hidden');
@@ -47,15 +50,18 @@ const renderFullscreenPhoto = (photoData) => {
 
   let shownComments = 0;
 
+  // Порционная отрисовка комментариев
   const renderCommentsPage = () => {
     const commentsToShow = photoData.comments.slice(shownComments, shownComments + COMMENTS_PER_PAGE);
+
     commentsToShow.forEach((comment) => {
       const commentElement = createCommentElement(comment);
       socialCommentsElement.appendChild(commentElement);
     });
 
     shownComments += commentsToShow.length;
-    socialCommentCountElement.innerHTML = `${shownComments} из <span class="comments-count">${photoData.comments.length}</span> комментариев`;
+    socialCommentCountElement.innerHTML = `${shownComments} из ${photoData.comments.length} комментариев`;
+
     if (shownComments >= photoData.comments.length) {
       commentsLoaderElement.classList.add('hidden');
     }
@@ -69,12 +75,14 @@ const renderFullscreenPhoto = (photoData) => {
 
   commentsLoaderElement.addEventListener('click', onCommentsLoaderClick);
 
+  // Сохраняем обработчик на DOM‑элемент, чтобы потом снять
   bigPictureElement._commentsLoaderHandler = onCommentsLoaderClick;
 
   bigPictureElement.classList.remove('hidden');
   document.body.classList.add('modal-open');
 };
 
+// Закрытие полноэкранного режима
 const closeFullscreenPhoto = () => {
   if (bigPictureElement._commentsLoaderHandler) {
     commentsLoaderElement.removeEventListener('click', bigPictureElement._commentsLoaderHandler);
@@ -85,17 +93,22 @@ const closeFullscreenPhoto = () => {
   document.body.classList.remove('modal-open');
 };
 
+// Обработка клика по миниатюре
 const onThumbnailClick = (photoData) => {
   renderFullscreenPhoto(photoData);
 };
 
+// Подключаем обработчики к миниатюрам
 const initFullscreenView = () => {
   const thumbnails = document.querySelectorAll('.picture');
+
   thumbnails.forEach((thumbnail) => {
     thumbnail.addEventListener('click', (evt) => {
       evt.preventDefault();
+
       const currentId = parseInt(thumbnail.dataset.id, 10);
       const currentData = userPhotos.find((item) => item.id === currentId);
+
       if (currentData) {
         onThumbnailClick(currentData);
       }
@@ -107,11 +120,10 @@ const initFullscreenView = () => {
   });
 
   document.addEventListener('keydown', (evt) => {
-    if (evt.key === 'Escape') {
+    if (evt.key === 'Escape' && !bigPictureElement.classList.contains('hidden')) {
       closeFullscreenPhoto();
     }
   });
 };
 
 export { initFullscreenView };
-

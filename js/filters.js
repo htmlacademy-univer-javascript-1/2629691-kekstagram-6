@@ -1,29 +1,38 @@
-import { debounce } from './util.js';
-import { renderThumbnails } from './rendering_thumbnails.js';
+// Работа с фильтрами списка фотографий
+import { debounce } from './utils.js';
+import { renderThumbnails } from './thumbnails.js';
 
 const RANDOM_PHOTOS_COUNT = 10;
 
-let currentFilter = 'default';
-let originalPhotos = [];
-let filteredPhotos = [];
+let currentFilter = 'default';        // текущий выбранный фильтр
+let originalPhotos = [];              // исходный список фотографий
+let filteredPhotos = [];              // отфильтрованный список
+let activeFilterButton = null;        // ссылка на активную кнопку фильтра
 
+// Возвращаем исходный список без изменений
 const filterDefault = () => [...originalPhotos];
 
+// Возвращаем случайный набор фотографий без повторов
 const filterRandom = () => {
-  const photos = [...originalPhotos];
+  const photosPool = [...originalPhotos];
   const randomPhotos = [];
 
-  for (let i = 0; i < Math.min(RANDOM_PHOTOS_COUNT, photos.length); i++) {
-    const randomIndex = Math.floor(Math.random() * photos.length);
-    randomPhotos.push(photos[randomIndex]);
-    photos.splice(randomIndex, 1);
+  const count = Math.min(RANDOM_PHOTOS_COUNT, photosPool.length);
+
+  for (let index = 0; index < count; index++) {
+    const randomIndex = Math.floor(Math.random() * photosPool.length);
+    randomPhotos.push(photosPool[randomIndex]);
+    photosPool.splice(randomIndex, 1); // убираем выбранный элемент, чтобы не повторялся
   }
 
   return randomPhotos;
 };
 
-const filterDiscussed = () => [...originalPhotos].sort((a, b) => b.comments.length - a.comments.length);
+// Сортируем по количеству комментариев (самые обсуждаемые сверху)
+const filterDiscussed = () =>
+  [...originalPhotos].sort((first, second) => second.comments.length - first.comments.length);
 
+// Применяем выбранный фильтр и перерисовываем миниатюры
 const applyFilter = () => {
   switch (currentFilter) {
     case 'default':
@@ -43,8 +52,10 @@ const applyFilter = () => {
   renderThumbnails(filteredPhotos, picturesContainer);
 };
 
+// Делаем отложенное применение фильтра, чтобы не дергать рендер слишком часто
 const debouncedApplyFilter = debounce(applyFilter);
 
+// Инициализация блока фильтров
 const initFilters = (photos) => {
   originalPhotos = [...photos];
 
@@ -53,19 +64,29 @@ const initFilters = (photos) => {
 
   const filterButtons = document.querySelectorAll('.img-filters__button');
 
+  // Обработчик клика по кнопке фильтра
   const onFilterButtonClick = (evt) => {
-    filterButtons.forEach((button) => {
-      button.classList.remove('img-filters__button--active');
-    });
+    const target = evt.target;
 
-    evt.target.classList.add('img-filters__button--active');
+    if (activeFilterButton) {
+      activeFilterButton.classList.remove('img-filters__button--active');
+    }
 
-    currentFilter = evt.target.id.replace('filter-', '');
+    target.classList.add('img-filters__button--active');
+    activeFilterButton = target;
 
+    // id вида filter-default / filter-random / filter-discussed
+    currentFilter = target.id.replace('filter-', '');
     debouncedApplyFilter();
   };
 
+  // Вешаем обработчики на кнопки и сразу активируем дефолтную
   filterButtons.forEach((button) => {
+    if (button.id === 'filter-default') {
+      button.classList.add('img-filters__button--active');
+      activeFilterButton = button;
+    }
+
     button.addEventListener('click', onFilterButtonClick);
   });
 
