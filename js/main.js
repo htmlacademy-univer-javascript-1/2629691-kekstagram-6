@@ -1,14 +1,15 @@
+// Точка входа: загрузка данных, показ миниатюр, запуск форм и полноэкранного режима
 import { getData } from './api.js';
-import { renderThumbnails } from './rendering_thumbnails.js';
-import { initFullscreenView } from './fullscreen.js';
+import { renderThumbnails } from './thumbnails.js';
+import { initFullscreenView } from './fullscreen_rendering.js';
 import { initUploadForm } from './form.js';
 
-// Время показа алерта
 const ALERT_SHOW_TIME = 5000;
 
+// сюда сохраняем фотографии пользователя для других модулей
 let userPhotos = [];
 
-// Функция для показа алерта об ошибке
+// Показ простого алерта поверх страницы
 const showAlert = (message) => {
   const alertContainer = document.createElement('div');
   alertContainer.style.zIndex = '100';
@@ -25,16 +26,16 @@ const showAlert = (message) => {
 
   document.body.append(alertContainer);
 
-  // Автоматически скрываем через 5 секунд
   setTimeout(() => {
     alertContainer.remove();
   }, ALERT_SHOW_TIME);
 };
 
-// Загрузка фотографий с сервера
+// Асинхронная загрузка фотографий с сервера
 const loadPhotos = async () => {
   try {
     userPhotos = await getData();
+
     const picturesContainer = document.querySelector('.pictures');
     renderThumbnails(userPhotos, picturesContainer);
     initFullscreenView();
@@ -44,10 +45,11 @@ const loadPhotos = async () => {
   }
 };
 
-// Инициализация при загрузке страницы
+// Инициализация приложения после загрузки DOM
 window.addEventListener('DOMContentLoaded', () => {
   loadPhotos();
   initUploadForm();
 });
 
 export { userPhotos };
+

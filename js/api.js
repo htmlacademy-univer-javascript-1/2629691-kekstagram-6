@@ -1,26 +1,27 @@
+// Работа с сетью: загрузка и отправка данных на сервер проекта
 const BASE_URL = 'https://29.javascript.htmlacademy.pro/kekstagram';
 
 const Route = {
   GET_DATA: '/data',
-  SEND_DATA: '/'
+  SEND_DATA: '/',
 };
 
 const Method = {
   GET: 'GET',
-  POST: 'POST'
+  POST: 'POST',
 };
 
 const ErrorText = {
   GET_DATA: 'Не удалось загрузить данные. Попробуйте обновить страницу',
-  SEND_DATA: 'Не удалось отправить форму. Попробуйте ещё раз'
+  SEND_DATA: 'Не удалось отправить форму. Попробуйте ещё раз',
 };
 
-// Основная функция для работы с сервером
+// Универсальная функция для работы с fetch
 const load = async (route, errorText, method = Method.GET, body = null) => {
   try {
     const response = await fetch(`${BASE_URL}${route}`, {
       method,
-      body
+      body,
     });
 
     if (!response.ok) {
@@ -28,15 +29,17 @@ const load = async (route, errorText, method = Method.GET, body = null) => {
     }
 
     return await response.json();
-  } catch (error){
+  } catch (error) {
+    // Пробрасываем свою ошибку с понятным текстом
     throw new Error(errorText);
   }
 };
 
-// Функция для получения данных с сервера
+// Получаем список фотографий
 const getData = () => load(Route.GET_DATA, ErrorText.GET_DATA);
 
-// Функция для отправки данных на сервер
+// Отправляем форму с фото
 const sendData = (body) => load(Route.SEND_DATA, ErrorText.SEND_DATA, Method.POST, body);
 
 export { getData, sendData };
+
