@@ -1,6 +1,7 @@
-// Логика формы загрузки фото, масштаб, эффекты, валидация и отправка
+// Логика формы загрузки фото: масштаб, эффекты, валидация и отправка
 import { sendData } from './api.js';
 
+// DOM
 const uploadForm = document.querySelector('.img-upload__form');
 const uploadInput = document.querySelector('.img-upload__input');
 const uploadOverlay = document.querySelector('.img-upload__overlay');
@@ -10,97 +11,88 @@ const hashtagsInput = uploadForm.querySelector('.text__hashtags');
 const descriptionInput = uploadForm.querySelector('.text__description');
 const submitButton = uploadForm.querySelector('.img-upload__submit');
 
-// Элементы для масштабирования
+// Масштабирование
 const scaleSmaller = uploadOverlay.querySelector('.scale__control--smaller');
 const scaleBigger = uploadOverlay.querySelector('.scale__control--bigger');
 const scaleValue = uploadOverlay.querySelector('.scale__control--value');
 const previewImage = uploadOverlay.querySelector('.img-upload__preview img');
 
-// Элементы для эффектов
+// Эффекты
 const effectsList = uploadOverlay.querySelector('.effects__list');
 const effectLevelContainer = uploadOverlay.querySelector('.img-upload__effect-level');
 const effectLevelValue = uploadOverlay.querySelector('.effect-level__value');
 const effectLevelSlider = uploadOverlay.querySelector('.effect-level__slider');
 
-// Инициализация Pristine (если библиотека подключена)
-let pristine = null;
+// Константы (настройки)
+const SCALE_STEP = 25;
+const SCALE_MIN = 25;
+const SCALE_MAX = 100;
+const SCALE_DEFAULT = 100;
 
-if (typeof Pristine !== 'undefined') {
-  pristine = new Pristine(uploadForm, {
-    classTo: 'img-upload__field-wrapper',
-    errorTextParent: 'img-upload__field-wrapper',
-    errorTextClass: 'img-upload__field-wrapper--error',
-  });
-}
+const MAX_HASHTAGS_COUNT = 5;
+const MAX_HASHTAG_LENGTH = 20;
+const MAX_DESCRIPTION_LENGTH = 140;
 
-// Настройки эффектов для noUiSlider и CSS-фильтров
+const DEFAULT_PREVIEW_IMAGE_SRC = 'img/upload-default-image.jpg';
+
+// Конфигурация эффектов (noUiSlider + CSS filter)
 const EFFECTS = {
   none: {
-    min: 0,
-    max: 100,
-    step: 1,
-    filter: 'none',
+    slider: null,
+    filter: null,
     unit: '',
   },
   chrome: {
-    min: 0,
-    max: 1,
-    step: 0.1,
+    slider: { min: 0, max: 1, step: 0.1 },
     filter: 'grayscale',
     unit: '',
   },
   sepia: {
-    min: 0,
-    max: 1,
-    step: 0.1,
+    slider: { min: 0, max: 1, step: 0.1 },
     filter: 'sepia',
     unit: '',
   },
   marvin: {
-    min: 0,
-    max: 100,
-    step: 1,
+    slider: { min: 0, max: 100, step: 1 },
     filter: 'invert',
     unit: '%',
   },
   phobos: {
-    min: 0,
-    max: 3,
-    step: 0.1,
+    slider: { min: 0, max: 3, step: 0.1 },
     filter: 'blur',
     unit: 'px',
   },
   heat: {
-    min: 1,
-    max: 3,
-    step: 0.1,
+    slider: { min: 1, max: 3, step: 0.1 },
     filter: 'brightness',
     unit: '',
   },
 };
 
+// Состояние
+let pristine = null;
+let currentScale = SCALE_DEFAULT;
 let currentEffect = 'none';
 let slider = null;
 
-// Параметры масштаба
-const SCALE_STEP = 25;
-const SCALE_MIN = 25;
-const SCALE_MAX = 100;
-
-let currentScale = 100;
-
-// Переменные для сообщений об ошибке/успехе
+// Сообщения об ошибке/успехе
 let messageBlock = null;
-// Функция-заглушка, чтобы можно было вызвать до инициализации сообщения
-let closeMessage = () => {};
 
-// Обновление визуального масштаба превью
+// ---------- Pristine (валидация) ----------
+if (typeof Pristine !== 'undefined') {
+  pristine = new Pristine(uploadForm, {
+    classTo: 'img-upload__text',
+    errorTextParent: 'img-upload__text',
+    errorTextClass: 'img-upload__error',
+  });
+}
+
+// ---------- Масштаб ----------
 function updateScale() {
   scaleValue.value = `${currentScale}%`;
   previewImage.style.transform = `scale(${currentScale / 100})`;
 }
 
-// Уменьшение масштаба
 function onScaleSmallerClick() {
   if (currentScale > SCALE_MIN) {
     currentScale -= SCALE_STEP;
@@ -108,7 +100,6 @@ function onScaleSmallerClick() {
   }
 }
 
-// Увеличение масштаба
 function onScaleBiggerClick() {
   if (currentScale < SCALE_MAX) {
     currentScale += SCALE_STEP;
@@ -116,94 +107,88 @@ function onScaleBiggerClick() {
   }
 }
 
-// Применение выбранного эффекта к изображению
+// ---------- Эффекты + слайдер ----------
 function applyEffect(value) {
-  if (currentEffect === 'none') {
+  const effectConfig = EFFECTS[currentEffect];
+
+  if (!effectConfig || currentEffect === 'none') {
     previewImage.style.filter = 'none';
+    effectLevelValue.value = '';
     return;
   }
 
-  const effect = EFFECTS[currentEffect];
-  previewImage.style.filter = `${effect.filter}(${value}${effect.unit})`;
+  const filterValue = `${effectConfig.filter}(${value}${effectConfig.unit})`;
+  previewImage.style.filter = filterValue;
+  effectLevelValue.value = value;
 }
 
-// Инициализация слайдера эффектов (noUiSlider)
-function initSlider() {
-  if (typeof noUiSlider === 'undefined' || slider) {
+function updateSlider() {
+  const effectConfig = EFFECTS[currentEffect];
+
+  if (!effectConfig || currentEffect === 'none') {
+    effectLevelContainer.classList.add('hidden');
+    previewImage.style.filter = 'none';
+
+    if (slider) {
+      slider.noUiSlider.set(0);
+    }
+
     return;
   }
 
-  slider = noUiSlider.create(effectLevelSlider, {
-    range: {
-      min: EFFECTS[currentEffect].min,
-      max: EFFECTS[currentEffect].max,
-    },
-    start: EFFECTS[currentEffect].max,
-    step: EFFECTS[currentEffect].step,
+  effectLevelContainer.classList.remove('hidden');
+
+  slider.noUiSlider.updateOptions({
+    range: { min: effectConfig.slider.min, max: effectConfig.slider.max },
+    step: effectConfig.slider.step,
+    start: effectConfig.slider.max,
     connect: 'lower',
   });
 
-  slider.on('update', () => {
-    const value = slider.get();
-    effectLevelValue.value = value;
+  slider.noUiSlider.set(effectConfig.slider.max);
+}
+
+function initSlider() {
+  if (!effectLevelSlider || typeof noUiSlider === 'undefined') {
+    return;
+  }
+
+  noUiSlider.create(effectLevelSlider, {
+    range: { min: 0, max: 1 },
+    step: 0.1,
+    start: 1,
+    connect: 'lower',
+  });
+
+  slider = effectLevelSlider;
+
+  slider.noUiSlider.on('update', () => {
+    const value = slider.noUiSlider.get();
     applyEffect(value);
   });
 }
 
-// Обновление настроек слайдера под текущий эффект
-function updateSlider() {
-  if (!slider) {
-    return;
-  }
-
-  slider.updateOptions({
-    range: {
-      min: EFFECTS[currentEffect].min,
-      max: EFFECTS[currentEffect].max,
-    },
-    start: EFFECTS[currentEffect].max,
-    step: EFFECTS[currentEffect].step,
-  });
-}
-
-// Обработка переключения эффекта через радио-кнопки
 function onEffectChange(evt) {
-  if (evt.target.type !== 'radio') {
+  const target = evt.target;
+
+  if (!target || target.name !== 'effect') {
     return;
   }
 
-  currentEffect = evt.target.value;
-
-  if (slider) {
-    slider.set(EFFECTS[currentEffect].max);
-  }
-
+  currentEffect = target.value;
   updateSlider();
-
-  if (currentEffect === 'none') {
-    effectLevelContainer.classList.add('hidden');
-  } else {
-    effectLevelContainer.classList.remove('hidden');
-  }
-
-  applyEffect(EFFECTS[currentEffect].max);
 }
 
-// Разбор строки с хеш‑тегами в массив
-function parseTagsInput(input) {
-  if (!input) {
-    return [];
-  }
-
-  return input
+// ---------- Хеш-теги ----------
+function parseTagsInput(value) {
+  return value
     .trim()
-    .split(/\s+/)
-    .filter(Boolean);
+    .split(' ')
+    .filter((tag) => tag.trim().length > 0);
 }
 
-// Проверка формата одного хеш‑тега
 function isValidTagFormat(tag) {
-  if (tag[0] !== '#') {
+  if (!tag.startsWith('#')) {
     return false;
   }
 
@@ -211,30 +196,31 @@ function isValidTagFormat(tag) {
     return false;
   }
 
-  if (tag.length > 20) {
+  if (tag.length > MAX_HASHTAG_LENGTH) {
     return false;
   }
 
   return /^[A-Za-zА-Яа-яЁё0-9]+$/.test(tag.slice(1));
 }
 
-// Валидация хеш‑тегов
 function validateHashtags(value) {
+  validateHashtags.lastError = '';
+
   const tags = parseTagsInput(value);
 
   if (tags.length === 0) {
     return true;
   }
 
-  if (tags.length > 5) {
-    validateHashtags.lastError = 'Нельзя указать больше пяти хэш-тегов.';
+  if (tags.length > MAX_HASHTAGS_COUNT) {
+    validateHashtags.lastError = `Нельзя указать больше ${MAX_HASHTAGS_COUNT} хэш-тегов.`;
     return false;
   }
 
   for (const tag of tags) {
     if (!isValidTagFormat(tag)) {
       validateHashtags.lastError =
-        `Неправильный формат тега "${tag}". Тег должен начинаться с # и содержать только буквы и цифры, длина до 20 символов.`;
+        `Неправильный формат тега "${tag}". Тег должен начинаться с # и содержать только буквы и цифры, длина до ${MAX_HASHTAG_LENGTH} символов.`;
       return false;
     }
   }
@@ -250,43 +236,95 @@ function validateHashtags(value) {
   return true;
 }
 
-// Сообщение об ошибке для Pristine по хеш‑тегам
 function hashtagsErrorMessage() {
   return validateHashtags.lastError || 'Неправильный формат хэш-тегов.';
 }
 
-// Валидация описания (комментария к фото)
+// ---------- Описание ----------
 function validateDescription(value) {
-  return value.length <= 140;
+  return value.length <= MAX_DESCRIPTION_LENGTH;
 }
 
-// Закрытие формы по Escape (если фокус не в полях ввода)
-function onDocumentKeydown(evt) {
-  if (evt.key !== 'Escape') {
+// ---------- Сообщения (success/error) ----------
+function showMessage(type, onClose = null) {
+  if (messageBlock) {
+    messageBlock.remove();
+    messageBlock = null;
+  }
+
+  const template = document.querySelector(`#${type}`);
+  if (!template) {
     return;
   }
 
-  if (uploadOverlay.classList.contains('hidden')) {
-    return;
+  const messageElement = template.content.firstElementChild.cloneNode(true);
+  const messageInner = messageElement.querySelector(`.${type}__inner`);
+
+  messageBlock = messageElement;
+  document.body.append(messageElement);
+
+  const closeButton = messageBlock.querySelector(`.${type}__button`);
+
+  const onEscapeKeydown = (evt) => {
+    if (evt.key === 'Escape') {
+      evt.preventDefault();
+      doClose();
+    }
+  };
+
+  const onClickOutside = (evt) => {
+    if (messageInner && !messageInner.contains(evt.target)) {
+      doClose();
+    }
+  };
+
+  const onCloseButtonClick = () => doClose();
+
+  function doClose() {
+    document.removeEventListener('keydown', onEscapeKeydown);
+    document.removeEventListener('click', onClickOutside);
+
+    if (closeButton) {
+      closeButton.removeEventListener('click', onCloseButtonClick);
+    }
+
+    if (messageBlock) {
+      messageBlock.remove();
+      messageBlock = null;
+    }
+
+    if (typeof onClose === 'function') {
+      onClose();
+    }
   }
 
-  const isFocusedOnInput =
-    document.activeElement === hashtagsInput ||
-    document.activeElement === descriptionInput;
+  document.addEventListener('keydown', onEscapeKeydown);
+  document.addEventListener('click', onClickOutside);
 
-  if (!isFocusedOnInput) {
+  if (closeButton) {
+    closeButton.addEventListener('click', onCloseButtonClick);
+  }
+}
+
+function showSuccessMessage() {
+  showMessage('success', () => {
+    resetFormToInitialState();
     closeUploadForm();
-  }
+  });
 }
 
-// Сброс всех настроек формы к начальному состоянию
+function showErrorMessage() {
+  showMessage('error');
+  submitButton.disabled = false;
+}
+
+// ---------- Открытие/закрытие формы ----------
 function resetFormToInitialState() {
-  currentScale = 100;
+  currentScale = SCALE_DEFAULT;
   updateScale();
 
   currentEffect = 'none';
   const noneEffectRadio = uploadOverlay.querySelector('#effect-none');
-
   if (noneEffectRadio) {
     noneEffectRadio.checked = true;
   }
@@ -299,7 +337,7 @@ function resetFormToInitialState() {
   descriptionInput.value = '';
   uploadInput.value = '';
 
-  previewImage.src = 'img/upload-default-image.jpg';
+  previewImage.src = DEFAULT_PREVIEW_IMAGE_SRC;
 
   if (pristine) {
     pristine.reset();
@@ -308,83 +346,17 @@ function resetFormToInitialState() {
   submitButton.disabled = false;
 }
 
-// Закрытие сообщения по Escape
-function onEscapeKeydown(evt) {
-  if (evt.key === 'Escape') {
-    closeMessage();
-  }
-}
-
-// Закрытие сообщения по клику вне блока
-function onClickOutside(evt) {
-  if (messageBlock && !messageBlock.contains(evt.target)) {
-    closeMessage();
-  }
-}
-
-// Универсальный показ сообщения (успех/ошибка)
-function showMessage(templateId, closeCallback) {
-  const template = document.querySelector(`#${templateId}`);
-
-  if (!template) {
-    return;
-  }
-
-  const messageElement = template.content.cloneNode(true);
-  messageBlock = messageElement.querySelector(`.${templateId}`);
-
-  if (!messageBlock) {
-    return;
-  }
-
-  document.body.append(messageBlock);
-
-  closeMessage = () => {
-    messageBlock.remove();
-    document.removeEventListener('keydown', onEscapeKeydown);
-    document.removeEventListener('click', onClickOutside);
-  };
-
-  const closeButton = messageBlock.querySelector(`.${templateId}__button`);
-
-  if (closeButton) {
-    closeButton.addEventListener('click', closeMessage);
-  }
-
-  document.addEventListener('keydown', onEscapeKeydown);
-  document.addEventListener('click', onClickOutside);
-
-  if (closeCallback) {
-    closeCallback();
-  }
-}
-
-// Сообщение об успешной отправке
-function showSuccessMessage() {
-  showMessage('success', () => {
-    resetFormToInitialState();
-    closeUploadForm();
-  });
-}
-
-// Сообщение об ошибке отправки
-function showErrorMessage() {
-  showMessage('error');
-  submitButton.disabled = false;
-}
-
-// Открытие модального окна формы
 function openUploadForm() {
   uploadOverlay.classList.remove('hidden');
   document.body.classList.add('modal-open');
+
   document.addEventListener('keydown', onDocumentKeydown);
 
-  currentScale = 100;
+  currentScale = SCALE_DEFAULT;
   updateScale();
 
   currentEffect = 'none';
   const noneEffectRadio = uploadOverlay.querySelector('#effect-none');
-
   if (noneEffectRadio) {
     noneEffectRadio.checked = true;
   }
@@ -392,14 +364,16 @@ function openUploadForm() {
   effectLevelContainer.classList.add('hidden');
   previewImage.style.filter = 'none';
 
+  if (pristine) {
+    pristine.reset();
+  }
+
   if (!slider) {
     initSlider();
-  } else {
-    updateSlider();
   }
+  updateSlider();
 }
 
-// Закрытие модального окна формы
 function closeUploadForm() {
   resetFormToInitialState();
   uploadOverlay.classList.add('hidden');
@@ -407,11 +381,86 @@ function closeUploadForm() {
   document.removeEventListener('keydown', onDocumentKeydown);
 }
 
-// Инициализация обработчиков формы загрузки
+// ESC: форма не должна закрываться, если открыто окно success/error
+function onDocumentKeydown(evt) {
+  if (evt.key !== 'Escape') {
+    return;
+  }
+
+  if (uploadOverlay.classList.contains('hidden')) {
+    return;
+  }
+
+  // Если открыто сообщение — ESC закрывает только сообщение, форма остаётся
+  if (document.querySelector('.error') || document.querySelector('.success')) {
+    return;
+  }
+
+  const isFocusedOnInput =
+    document.activeElement === hashtagsInput ||
+    document.activeElement === descriptionInput;
+
+  if (!isFocusedOnInput) {
+    closeUploadForm();
+  }
+}
+
+// ---------- Handlers (именованные) ----------
+function onUploadCancelClick(evt) {
+  evt.preventDefault();
+  closeUploadForm();
+}
+
+function onUploadInputChange() {
+  if (!uploadInput.files || uploadInput.files.length === 0) {
+    return;
+  }
+
+  const file = uploadInput.files[0];
+  const reader = new FileReader();
+
+  reader.onload = (evt) => {
+    previewImage.src = evt.target.result;
+    openUploadForm();
+  };
+
+  reader.readAsDataURL(file);
+}
+
+// Чтобы Escape внутри полей ввода не закрывал форму
+function stopEscPropagation(evt) {
+  if (evt.key === 'Escape') {
+    evt.stopPropagation();
+  }
+}
+
+async function onUploadFormSubmit(evt) {
+  evt.preventDefault();
+
+  if (pristine && !pristine.validate()) {
+    return;
+  }
+
+  submitButton.disabled = true;
+
+  try {
+    const formData = new FormData(uploadForm);
+    await sendData(formData);
+    showSuccessMessage();
+  } catch (error) {
+    showErrorMessage();
+  }
+}
+
+// ---------- Инициализация ----------
 function initUploadForm() {
   if (pristine) {
     pristine.addValidator(hashtagsInput, validateHashtags, hashtagsErrorMessage);
-    pristine.addValidator(descriptionInput, validateDescription, 'Длина комментария не может превышать 140 символов.');
+    pristine.addValidator(
+      descriptionInput,
+      validateDescription,
+      `Длина комментария не может превышать ${MAX_DESCRIPTION_LENGTH} символов.`
+    );
   }
 
   // Масштаб
@@ -422,54 +471,18 @@ function initUploadForm() {
   effectsList.addEventListener('change', onEffectChange);
 
   // Загрузка файла и открытие формы
-  uploadInput.addEventListener('change', () => {
-    if (uploadInput.files && uploadInput.files.length > 0) {
-      const file = uploadInput.files[0];
-      const reader = new FileReader();
-
-      reader.onload = (evt) => {
-        previewImage.src = evt.target.result;
-        openUploadForm();
-      };
-
-      reader.readAsDataURL(file);
-    }
-  });
+  uploadInput.addEventListener('change', onUploadInputChange);
 
   // Кнопка отмены
-  uploadCancel.addEventListener('click', (evt) => {
-    evt.preventDefault();
-    closeUploadForm();
-  });
+  uploadCancel.addEventListener('click', onUploadCancelClick);
 
-  // Чтобы Escape внутри полей ввода не закрывал форму
+  // Escape в инпутах
   [hashtagsInput, descriptionInput].forEach((element) => {
-    element.addEventListener('keydown', (evt) => {
-      if (evt.key === 'Escape') {
-        evt.stopPropagation();
-      }
-    });
+    element.addEventListener('keydown', stopEscPropagation);
   });
 
   // Отправка формы на сервер
-  uploadForm.addEventListener('submit', async (evt) => {
-    evt.preventDefault();
-
-    if (pristine && !pristine.validate()) {
-      return;
-    }
-
-    submitButton.disabled = true;
-
-    try {
-      const formData = new FormData(uploadForm);
-      await sendData(formData);
-      showSuccessMessage();
-    } catch (error) {
-      showErrorMessage();
-    }
-  });
+  uploadForm.addEventListener('submit', onUploadFormSubmit);
 }
 
 export { initUploadForm, closeUploadForm };
-
