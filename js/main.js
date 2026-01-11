@@ -1,8 +1,9 @@
-// Точка входа: загрузка данных, показ миниатюр, запуск форм и полноэкранного режима
+// Точка входа: загрузка данных, показ миниатюр, запуск фильтров, форм и полноэкранного режима
 import { getData } from './api.js';
 import { renderThumbnails } from './thumbnails.js';
 import { initFullscreenView } from './fullscreen_rendering.js';
 import { initUploadForm } from './form.js';
+import { initFilters } from './filters.js';
 
 const ALERT_SHOW_TIME = 5000;
 
@@ -38,6 +39,11 @@ const loadPhotos = async () => {
 
     const picturesContainer = document.querySelector('.pictures');
     renderThumbnails(userPhotos, picturesContainer);
+
+    // Фильтры (default/random/discussed)
+    initFilters(userPhotos);
+
+    // Полноэкранный просмотр
     initFullscreenView();
   } catch (error) {
     showAlert(error.message);
@@ -45,11 +51,10 @@ const loadPhotos = async () => {
   }
 };
 
-// Инициализация приложения после загрузки DOM
-window.addEventListener('DOMContentLoaded', () => {
-  loadPhotos();
-  initUploadForm();
-});
+// В проектах с <script type="module"> код и так выполняется после построения DOM,
+// поэтому DOMContentLoaded здесь избыточен.
+loadPhotos();
+initUploadForm();
 
 export { userPhotos };
 
